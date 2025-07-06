@@ -46,8 +46,8 @@ def limpar_espacos(texto: str) -> str:
 
 # 2. Destaca visualmente entidades úteis como CPF, CNPJ e valores
 def destacar_entidades(texto: str) -> str:
-    texto = re.sub(r'\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b', r'[CPF:**\g<0>**]', texto)
-    texto = re.sub(r'\b\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2}\b', r'[CNPJ:**\g<0>**]', texto)
+    texto = re.sub(r'\b\d{3}\.?\d{3}\.?\d{3}\-?\d{2}\b', r'[CPF:**\g<0>**]', texto)
+    texto = re.sub(r'\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}\-?\d{2}\b', r'[CNPJ:**\g<0>**]', texto)
     texto = re.sub(r'[RU].\s\d+.*?,\d{2}?', lambda x: f"[VALOR:**{x.group()}**]", texto)
     texto = re.sub(r'(\d{1,3}[.,]\d{1,3}?[.,]?\d{1,3}[.,]\d{2})[\s,]', lambda x: f"[VALOR:**{x.group(1)}**]", texto)
     return texto

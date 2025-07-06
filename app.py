@@ -87,6 +87,8 @@ if uploaded_file and uploaded_file2:
         # lista única
         todos_envolvidos_cpf_cnpj = list(set(todos_envolvidos_cpf_cnpj))
         todos_envolvidos_nomes = list(set(todos_envolvidos_nomes))
+        todos_envolvidos_nomes = [item.strip() for item in todos_envolvidos_nomes if len(item.strip()) >= 3]
+
 
 
         lista_comunicacoes_editada = []
@@ -251,101 +253,105 @@ if uploaded_file and uploaded_file2:
 
         # FINAL TESTE ----------------
 
-        # Colunas e configurações
-        colunas = ['Comunicação', 'Remetente_Nome', 'Remetente_CPF_CNPJ', 'Remetente_Banco', 'Valor', 'Quantidade', 'Destinatário_Nome', 'Destinatário_CPF_CNPJ', 'Destinatário_Banco']
-        valores_padrao = {
-            "Comunicação": name_file,
-            "Remetente_Nome": "",
-            "Remetente_CPF_CNPJ": "",
-            "Remetente_Banco": "",
-            "Valor": "",
-            "Quantidade": "",
-            "Destinatário_Nome":"",
-            "Destinatário_CPF_CNPJ":"",
-            "Destinatário_Banco":""
-        }
-        if "tabela_editavel" not in st.session_state:
-            st.session_state["tabela_editavel"] = pd.DataFrame(columns=colunas)
+        # Adicionar opção para limpar e juntar origem e destino para a próxima opção de análise
 
-        tabela = st.session_state["tabela_editavel"].copy()
-        tabela.insert(0, "Linha", range(1, len(tabela) + 1))  # adiciona coluna numérica para referência
-
-
-
-        # Configurar tabela interativa
-        gb = GridOptionsBuilder.from_dataframe(tabela)
-        gb.configure_default_column(editable=True, resizable=True)
-        gb.configure_selection('multiple', use_checkbox=True)
-
-        gb.configure_column("Linha", header_name="Linha", editable=False, width=70, pinned='left', checkboxSelection=True)
-
-        # Coluna: Comunicação
-        gb.configure_column("Comunicação", header_name="Comunicação", editable=True)
-        # Coluna: Remetente_Nome (obrigatória)
-        gb.configure_column("Remetente_Nome", header_name="Nome Remetente", editable=True, cellEditor="agTextCellEditor")
-        # Coluna: Remetente_CPF_CNPJ
-        gb.configure_column("Remetente_CPF_CNPJ", header_name="NI Remetente", editable=True)
-        # Coluna: Remetente_Banco
-        gb.configure_column("Remetente_Banco", header_name="Banco Remetente", editable=True)
-         # Coluna: Valor (obrigatória)
-        gb.configure_column("Valor", header_name="Valor", editable=True, type=["numericColumn","numberColumnFilter"], cellEditor="agTextCellEditor")
-         # Coluna: Quantidade
-        gb.configure_column("Quantidade", header_name="Quantidade", editable=True, type=["numericColumn","numberColumnFilter"])
-         # Coluna: Destinatário_Nome (obrigatória)
-        gb.configure_column("Destinatário_Nome", header_name="Nome Destinatário", editable=True, cellEditor="agTextCellEditor")
-         # Coluna: Destinatário_CPF_CNPJ
-        gb.configure_column("Destinatário_CPF_CNPJ", header_name="NI Destinatário", editable=True)
-         # Coluna: Destinatário_Banco
-        gb.configure_column("Destinatário_Banco", header_name="Banco Destinatário", editable=True)
-
-
-        grid = AgGrid(
-            tabela,
-            gridOptions=gb.build(),
-            editable=True,
-            fit_columns_on_grid_load=True,
-            theme="alpine",  # pode trocar para "streamlit", "material", "balham"
-            update_mode=GridUpdateMode.MODEL_CHANGED,
-            allow_unsafe_jscode=True,
-            enable_enterprise_modules=False,
-            height=400
-        )
-
-        # Atualizar dados com edição
-        df_editado = pd.DataFrame(grid["data"]).drop(columns=["Linha"], errors="ignore")
-        st.session_state["tabela_editavel"] = df_editado
-
-        col1_tabela, col2_tabela, col3_tabela = st.columns([5, 1, 1])
-
-        with col1_tabela:
         
-            if st.button("🤯 Preencher automaticamente"):
-                nova_linha = df_origem_destino_final
-                st.session_state["tabela_editavel"] = pd.concat(
-                    [st.session_state["tabela_editavel"], nova_linha], ignore_index=True
-                )
-                st.rerun()
 
-        with col2_tabela:
-            # Adicionar nova linha
-            if st.button("➕ Adicionar linhas"):
+    #     # Colunas e configurações
+    #     colunas = ['Comunicação', 'Remetente_Nome', 'Remetente_CPF_CNPJ', 'Remetente_Banco', 'Valor', 'Quantidade', 'Destinatário_Nome', 'Destinatário_CPF_CNPJ', 'Destinatário_Banco']
+    #     valores_padrao = {
+    #         "Comunicação": name_file,
+    #         "Remetente_Nome": "",
+    #         "Remetente_CPF_CNPJ": "",
+    #         "Remetente_Banco": "",
+    #         "Valor": "",
+    #         "Quantidade": "",
+    #         "Destinatário_Nome":"",
+    #         "Destinatário_CPF_CNPJ":"",
+    #         "Destinatário_Banco":""
+    #     }
+    #     if "tabela_editavel" not in st.session_state:
+    #         st.session_state["tabela_editavel"] = pd.DataFrame(columns=colunas)
+
+    #     tabela = st.session_state["tabela_editavel"].copy()
+    #     tabela.insert(0, "Linha", range(1, len(tabela) + 1))  # adiciona coluna numérica para referência
+
+
+
+    #     # Configurar tabela interativa
+    #     gb = GridOptionsBuilder.from_dataframe(tabela)
+    #     gb.configure_default_column(editable=True, resizable=True)
+    #     gb.configure_selection('multiple', use_checkbox=True)
+
+    #     gb.configure_column("Linha", header_name="Linha", editable=False, width=70, pinned='left', checkboxSelection=True)
+
+    #     # Coluna: Comunicação
+    #     gb.configure_column("Comunicação", header_name="Comunicação", editable=True)
+    #     # Coluna: Remetente_Nome (obrigatória)
+    #     gb.configure_column("Remetente_Nome", header_name="Nome Remetente", editable=True, cellEditor="agTextCellEditor")
+    #     # Coluna: Remetente_CPF_CNPJ
+    #     gb.configure_column("Remetente_CPF_CNPJ", header_name="NI Remetente", editable=True)
+    #     # Coluna: Remetente_Banco
+    #     gb.configure_column("Remetente_Banco", header_name="Banco Remetente", editable=True)
+    #      # Coluna: Valor (obrigatória)
+    #     gb.configure_column("Valor", header_name="Valor", editable=True, type=["numericColumn","numberColumnFilter"], cellEditor="agTextCellEditor")
+    #      # Coluna: Quantidade
+    #     gb.configure_column("Quantidade", header_name="Quantidade", editable=True, type=["numericColumn","numberColumnFilter"])
+    #      # Coluna: Destinatário_Nome (obrigatória)
+    #     gb.configure_column("Destinatário_Nome", header_name="Nome Destinatário", editable=True, cellEditor="agTextCellEditor")
+    #      # Coluna: Destinatário_CPF_CNPJ
+    #     gb.configure_column("Destinatário_CPF_CNPJ", header_name="NI Destinatário", editable=True)
+    #      # Coluna: Destinatário_Banco
+    #     gb.configure_column("Destinatário_Banco", header_name="Banco Destinatário", editable=True)
+
+
+    #     grid = AgGrid(
+    #         tabela,
+    #         gridOptions=gb.build(),
+    #         editable=True,
+    #         fit_columns_on_grid_load=True,
+    #         theme="alpine",  # pode trocar para "streamlit", "material", "balham"
+    #         update_mode=GridUpdateMode.MODEL_CHANGED,
+    #         allow_unsafe_jscode=True,
+    #         enable_enterprise_modules=False,
+    #         height=400
+    #     )
+
+    #     # Atualizar dados com edição
+    #     df_editado = pd.DataFrame(grid["data"]).drop(columns=["Linha"], errors="ignore")
+    #     st.session_state["tabela_editavel"] = df_editado
+
+    #     col1_tabela, col2_tabela, col3_tabela = st.columns([5, 1, 1])
+
+    #     with col1_tabela:
+        
+    #         if st.button("🤯 Preencher automaticamente"):
+    #             nova_linha = df_origem_destino_final
+    #             st.session_state["tabela_editavel"] = pd.concat(
+    #                 [st.session_state["tabela_editavel"], nova_linha], ignore_index=True
+    #             )
+    #             st.rerun()
+
+    #     with col2_tabela:
+    #         # Adicionar nova linha
+    #         if st.button("➕ Adicionar linhas"):
                 
-                nova_linha = pd.DataFrame([valores_padrao])
-                st.session_state["tabela_editavel"] = pd.concat(
-                    [st.session_state["tabela_editavel"], nova_linha], ignore_index=True
-                )
-                st.rerun()
+    #             nova_linha = pd.DataFrame([valores_padrao])
+    #             st.session_state["tabela_editavel"] = pd.concat(
+    #                 [st.session_state["tabela_editavel"], nova_linha], ignore_index=True
+    #             )
+    #             st.rerun()
 
-        # Não tá funcionando ------------- Criar função para apagar toda tabela tb
-        with col3_tabela:
-            if st.button("➖ Apagar linhas"):
-                selecionadas = grid.get("selected_rows", [])
-                if isinstance(selecionadas, list) and len(selecionadas) > 0:
-                    # Obter índices das linhas selecionadas
-                    linhas_para_remover = [row["Linha"] - 1 for row in selecionadas if "Linha" in row]
-                    nova_df = st.session_state["tabela_editavel"].drop(index=linhas_para_remover).reset_index(drop=True)
-                    st.session_state["tabela_editavel"] = nova_df
-                    st.rerun()
+    #     # Não tá funcionando ------------- Criar função para apagar toda tabela tb
+    #     with col3_tabela:
+    #         if st.button("➖ Apagar linhas"):
+    #             selecionadas = grid.get("selected_rows", [])
+    #             if isinstance(selecionadas, list) and len(selecionadas) > 0:
+    #                 # Obter índices das linhas selecionadas
+    #                 linhas_para_remover = [row["Linha"] - 1 for row in selecionadas if "Linha" in row]
+    #                 nova_df = st.session_state["tabela_editavel"].drop(index=linhas_para_remover).reset_index(drop=True)
+    #                 st.session_state["tabela_editavel"] = nova_df
+    #                 st.rerun()
 
 
     
@@ -353,24 +359,24 @@ if uploaded_file and uploaded_file2:
 
 
 
-        # st.session_state["tabela_editavel"] = df_editado
+    #     # st.session_state["tabela_editavel"] = df_editado
 
-        # Validação simples antes de salvar
-        erros = []
+    #     # Validação simples antes de salvar
+    #     erros = []
 
-        for i, row in df_editado.iterrows():
-            if not row["Remetente_Nome"] or not row["Valor"] or not row["Destinatário_Nome"]:
-                erros.append(f"Linha {i+1} incompleta (Remetente_Nome, Valor e Destinatário_Nome são obrigatórios)")
+    #     for i, row in df_editado.iterrows():
+    #         if not row["Remetente_Nome"] or not row["Valor"] or not row["Destinatário_Nome"]:
+    #             erros.append(f"Linha {i+1} incompleta (Remetente_Nome, Valor e Destinatário_Nome são obrigatórios)")
 
-        if erros:
-            for e in erros:
-                st.error(e)
-        else:
-            # Baixar CSV
-            st.download_button(
-                "💾 Baixar tabela como CSV",
-                pd.DataFrame(df_editado).to_csv(index=False),
-                file_name="{}_origem_destino.csv".format(name_file)
-        )
-    else:
-        st.warning("⚠️ Nenhuma coluna de texto encontrada no CSV.")
+    #     if erros:
+    #         for e in erros:
+    #             st.error(e)
+    #     else:
+    #         # Baixar CSV
+    #         st.download_button(
+    #             "💾 Baixar tabela como CSV",
+    #             pd.DataFrame(df_editado).to_csv(index=False),
+    #             file_name="{}_origem_destino.csv".format(name_file)
+    #     )
+    # else:
+    #     st.warning("⚠️ Nenhuma coluna de texto encontrada no CSV.")
