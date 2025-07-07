@@ -88,6 +88,8 @@ if uploaded_file and uploaded_file2:
         todos_envolvidos_cpf_cnpj = list(set(todos_envolvidos_cpf_cnpj))
         todos_envolvidos_nomes = list(set(todos_envolvidos_nomes))
         todos_envolvidos_nomes = [item.strip() for item in todos_envolvidos_nomes if len(item.strip()) >= 3]
+        # dataframe com ni e nome apenas
+        df_env_ni_nome = df_env[['cpfCnpjEnvolvido', 'nomeEnvolvido']].drop_duplicates().sort_values(by=['cpfCnpjEnvolvido', 'nomeEnvolvido']).reset_index(drop=True)
 
 
 
@@ -223,38 +225,82 @@ if uploaded_file and uploaded_file2:
                 st.markdown(st.session_state.get("texto_transformado", ""), unsafe_allow_html=True)
         
         st.divider()
-        st.markdown("### 🧮 Tabela editável Origem/Destino dos recursos")
+        if novo_texto:
 
-        # TESTE TABELA ------------------
+            st.markdown("### 🧮 Tabela editável Origem/Destino dos recursos")
 
-        # Encontrar todos os blocos de tabela markdown
-        tabela_origem = re.findall(r"((?:\|.*\n)+)", st.session_state["texto_transformado"].split('\n\n ------------ \n\n')[1])
-        tabela_destino = re.findall(r"((?:\|.*\n)+)", st.session_state["texto_transformado"].split('\n\n ------------ \n\n')[2])
-        
+            # TESTE TABELA ------------------
 
-        df_origem_final = juntar_tabelas_markdown(tabela_origem)
-        df_destino_final = juntar_tabelas_markdown(tabela_destino)
-        # df_origem_final = pd.concat(dataframes, ignore_index=True)
+            # Encontrar todos os blocos de tabela markdown
+            tabela_origem = re.findall(r"((?:\|.*\n)+)", st.session_state["texto_transformado"].split('\n\n ------------ \n\n')[1])
+            tabela_destino = re.findall(r"((?:\|.*\n)+)", st.session_state["texto_transformado"].split('\n\n ------------ \n\n')[2])
+            
 
-        df_origem_destino_final = criar_tabela_origem_destino_preenchida(name_file, banco_comunicante, titular_env, df_origem_final, df_destino_final)
+            df_origem_final = juntar_tabelas_markdown(tabela_origem)
+            df_destino_final = juntar_tabelas_markdown(tabela_destino)
+            # df_origem_final = pd.concat(dataframes, ignore_index=True)
 
-        # tratar dados presentes na tabela de maneira inicial
-        df_origem_destino_final = limpar_dataframe_valor(df_origem_destino_final)
-        df_origem_destino_final["Remetente_CPF_CNPJ"] = df_origem_destino_final["Remetente_CPF_CNPJ"].apply(best_match, args=(df_env["cpfCnpjEnvolvido"].to_list(),))
-        df_origem_destino_final["Destinatário_CPF_CNPJ"] = df_origem_destino_final["Destinatário_CPF_CNPJ"].apply(best_match, args=(df_env["cpfCnpjEnvolvido"].to_list(),))
-        
-        
-        st.write(df_origem_destino_final)
-        st.download_button(
-        "💾 Baixar tabela como CSV",
-        df_origem_destino_final.to_csv(index=False),
-        file_name="{}_origem_destino.csv".format(name_file),
-        key="download_origem_destino")
+            df_origem_destino_final = criar_tabela_origem_destino_preenchida(name_file, banco_comunicante, titular_env, df_origem_final, df_destino_final)
+
+            # tratar dados presentes na tabela de maneira inicial
+            # df_origem_destino_final = limpar_dataframe_ori_dest(df_origem_destino_final)
+            # df_origem_destino_final["Remetente_CPF_CNPJ"] = df_origem_destino_final["Remetente_CPF_CNPJ"].apply(best_match, args=(df_env["cpfCnpjEnvolvido"].to_list(),))
+            # df_origem_destino_final["Destinatário_CPF_CNPJ"] = df_origem_destino_final["Destinatário_CPF_CNPJ"].apply(best_match, args=(df_env["cpfCnpjEnvolvido"].to_list(),))
+            
+            
+            st.write(df_origem_destino_final)
+            st.download_button(
+            "💾 Baixar tabela como CSV",
+            df_origem_destino_final.to_csv(index=False),
+            file_name="{}_origem_destino.csv".format(name_file),
+            key="download_origem_destino")
+
+            st.write("---")
+
+        else:
+            st.write("---")
 
         # FINAL TESTE ----------------
 
         # Adicionar opção para limpar e juntar origem e destino para a próxima opção de análise
+        
+        
+        st.markdown("### Junte os arquivos origem_destino já baixados")
+        uploaded_files_ori_dest = st.file_uploader("Faça upload de arquivos origem e destino", accept_multiple_files=True, type="csv")
+        if uploaded_files_ori_dest:
+            dfs_ori_dest = juntar_csvs(uploaded_files_ori_dest)
+        
+            df_limpo = limpar_dataframe_ori_dest(dfs_ori_dest)
 
+            df_limpo["len_Remetente_CPF_CNPJ"] = df_limpo['Remetente_CPF_CNPJ'].apply(len_CPF_CNPJ)
+            df_limpo["len_Destinatário_CPF_CNPJ"] = df_limpo['Destinatário_CPF_CNPJ'].apply(len_CPF_CNPJ)
+
+            df_limpo['Remetente_CPF_CNPJ_sem_mascara'] = df_limpo['Remetente_CPF_CNPJ'].apply(limpar_documento)
+            df_limpo['Destinatario_CPF_CNPJ_sem_mascara'] = df_limpo['Destinatário_CPF_CNPJ'].apply(limpar_documento)
+            df_env_ni_nome['cpfCnpjEnvolvido_sem_mascara'] = df_env_ni_nome['cpfCnpjEnvolvido'].apply(limpar_documento)
+
+            referencias = df_env_ni_nome['cpfCnpjEnvolvido_sem_mascara'].tolist()
+            df_limpo['Remetente_CPF_CNPJ_sem_mascara_corrigido'] = df_limpo['Remetente_CPF_CNPJ_sem_mascara'].apply(lambda d: corrigir_doc(d, referencias))
+            df_limpo['Destinatario_CPF_CNPJ_sem_mascara_corrigido'] = df_limpo['Destinatario_CPF_CNPJ_sem_mascara'].apply(lambda d: corrigir_doc(d, referencias))
+
+            df_limpo['Destinatário_CPF_CNPJ'] = df_limpo['Destinatario_CPF_CNPJ_sem_mascara_corrigido'].apply(lambda x: aplicar_mascara(x))
+            df_limpo['Remetente_CPF_CNPJ'] = df_limpo['Remetente_CPF_CNPJ_sem_mascara_corrigido'].apply(lambda x: aplicar_mascara(x))
+
+            df_limpo_tratado = df_limpo.drop(['len_Remetente_CPF_CNPJ', 'len_Destinatário_CPF_CNPJ', 'Remetente_CPF_CNPJ_sem_mascara', 'Remetente_CPF_CNPJ_sem_mascara_corrigido', 'Destinatario_CPF_CNPJ_sem_mascara', 'Destinatario_CPF_CNPJ_sem_mascara_corrigido'], axis=1)
+            
+            st.write(df_limpo_tratado)
+            st.download_button(
+            "💾 Baixar tabela como CSV",
+            df_limpo_tratado.to_csv(index=False),
+            file_name="origem_destino_tratado.csv",
+            key="download_origem_destino_tabela_unica")
+
+        else:
+            st.markdown("Ainda sem arquivos juntados")
+
+
+        # dataframe com ni e nome
+        # df_env_ni_nome
         
 
     #     # Colunas e configurações

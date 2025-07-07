@@ -11,6 +11,7 @@ import pandas as pd
 import difflib
 from typing import List, Optional
 import numpy as np
+from rapidfuzz import process, fuzz
 
 
 
@@ -683,33 +684,134 @@ def best_match(input_dirty: str, valid_list: List[str], similarity_threshold: fl
         return input_clean
 
 
-def limpar_dataframe_valor(df):
+# def limpar_dataframe_valor(df):
+#     # Remove espaços extras em colunas e valores
+#     df.columns = df.columns.str.strip()
+#     df = df.applymap(lambda x: x.strip() if isinstance(x, str) else x)
+
+#     # Passar td para upper
+#     df['Remetente_Nome'] = df['Remetente_Nome'].str.upper()
+#     df['Remetente_Banco'] = df['Remetente_Banco'].str.upper()
+#     df['Destinatário_Nome'] = df['Destinatário_Nome'].str.upper()
+#     df['Destinatário_Banco'] = df['Destinatário_Banco'].str.upper()
+
+#     # Converte coluna "Valor" para número
+#     df["Valor"] = (
+#         df["Valor"]
+#         .astype(str)
+#         .str.replace(".", "", regex=False)
+#         .str.replace(",", ".", regex=False)
+#         .str.replace("R", "", regex=False)
+#         .str.strip()
+#         .replace("[^\.\d]*", "", regex=True)
+#         .replace("", np.nan)
+#         .astype(float)
+#     )
+
+#     return df
+
+def juntar_csvs(arquivos_csv):
+    """
+    Recebe uma lista de objetos UploadedFile do Streamlit e os concatena em um único DataFrame.
+    """
+    # Passamos cada objeto 'file' diretamente para o pd.read_csv
+    dfs = [pd.read_csv(file) for file in arquivos_csv]
+    return pd.concat(dfs, ignore_index=True)
+
+def limpar_valor(valor):
+    if not isinstance(valor, str):
+        valor = str(valor)
+    
+    # Remove 'R$', 'R', espaços e outros símbolos não numéricos comuns
+    valor = re.sub(r'[^\d,.-]', '', valor)
+    
+    # Se há vírgula e ponto, decidir quem é milhar e quem é decimal
+    if ',' in valor and '.' in valor:
+        if valor.find(',') < valor.find('.'):
+            # Ex: 1,352,805.0 (vírgula = milhar, ponto = decimal)
+            valor = valor.replace(',', '')
+        else:
+            # Ex: 437.839,00 (ponto = milhar, vírgula = decimal)
+            valor = valor.replace('.', '').replace(',', '.')
+    elif ',' in valor:
+        # Assume que vírgula é separador decimal (estilo brasileiro)
+        valor = valor.replace(',', '.')
+    else:
+        # Só ponto ou nenhum: assume ponto como decimal
+        pass
+    if valor == "":
+        valor = np.nan
+    
+    try:
+        return float(valor)
+    except ValueError:
+        raise ValueError(f"Valor inválido para conversão: {valor}")
+        
+
+def limpar_dataframe_ori_dest(df):
     # Remove espaços extras em colunas e valores
     df.columns = df.columns.str.strip()
     df = df.applymap(lambda x: x.strip() if isinstance(x, str) else x)
 
-    # Passar td para upper
-    df['Remetente_Nome'] = df['Remetente_Nome'].str.upper()
-    df['Remetente_Banco'] = df['Remetente_Banco'].str.upper()
-    df['Destinatário_Nome'] = df['Destinatário_Nome'].str.upper()
-    df['Destinatário_Banco'] = df['Destinatário_Banco'].str.upper()
+    # Remove prefixos como "CNPJ:" e espaços nos CPFs/CNPJs
+    df["Remetente_CPF_CNPJ"] = df["Remetente_CPF_CNPJ"].str.replace("CNPJ:", "", regex=False).str.strip()
+    df["Destinatário_CPF_CNPJ"] = df["Destinatário_CPF_CNPJ"].str.replace("CNPJ:", "", regex=False).str.strip()
+    df["Remetente_CPF_CNPJ"] = df["Remetente_CPF_CNPJ"].str.replace("CPF:", "", regex=False).str.strip()
+    df["Destinatário_CPF_CNPJ"] = df["Destinatário_CPF_CNPJ"].str.replace("CPF:", "", regex=False).str.strip()
+
+    # Remove linhas com CPF/CNPJ ausente
+    df = df.dropna(subset=["Remetente_CPF_CNPJ", "Destinatário_CPF_CNPJ"])
 
     # Converte coluna "Valor" para número
-    df["Valor"] = (
-        df["Valor"]
-        .astype(str)
-        .str.replace(".", "", regex=False)
-        .str.replace(",", ".", regex=False)
-        .str.replace("R", "", regex=False)
-        .str.strip()
-        .replace("[^\.\d]*", "", regex=True)
-        .replace("", np.nan)
-        .astype(float)
-    )
+    df["valor"] = df["Valor"].apply(limpar_valor)
+    # df["Valor"] = (
+    #     df["Valor"]
+    #     .astype(str)
+    #     .str.replace(".", "", regex=False)
+    #     .str.replace(",", ".", regex=False)
+    #     .str.replace("R", "", regex=False)
+    #     .str.strip()
+    #     .replace("[^\.\d]*", "", regex=True)
+    #     .replace("", np.nan)
+    #     .astype(float)
+    # )
+
+    # Substitui valores NaN em colunas textuais por "Desconhecido"
+    for col in ["Remetente_Nome", "Remetente_Banco", "Destinatário_Nome", "Destinatário_Banco", "Comunicação"]:
+        df[col] = df[col].fillna("Desconhecido")
+
+    # Garante que não haja valores nulos em campos importantes
+    df = df.dropna(subset=["Valor"])
+
+    # Padronizar UPPER nome
+    df["Remetente_Nome"] = df["Remetente_Nome"].str.upper()
+    df["Destinatário_Nome"] = df["Destinatário_Nome"].str.upper()
+    df["Remetente_Banco"] = df["Remetente_Banco"].str.upper()
+    df["Destinatário_Banco"] = df["Destinatário_Banco"].str.upper()
 
     return df
 
+def len_CPF_CNPJ(ni):
+    ni = re.sub(r"\D", "", ni)
+    return len(ni)
 
+def limpar_documento(doc):
+    return re.sub(r'\D', '', str(doc))
 
+def corrigir_doc(doc_sujo, referencia):
+    correspondencia = process.extractOne(
+        query=doc_sujo,
+        choices=referencia,
+        scorer=fuzz.ratio,  # ou fuzz.partial_ratio para tolerância maior
+        score_cutoff=80     # pode ajustar esse limiar
+    )
+    return correspondencia[0] if correspondencia else None
 
-    
+def aplicar_mascara(ni):
+    if len(ni) == 14:
+        cnpj = ni 
+        return f"{cnpj[:2]}.{cnpj[2:5]}.{cnpj[5:8]}/{cnpj[8:12]}-{cnpj[12:]}"
+        
+    elif len(ni) == 11:
+        cpf = ni
+        return f"{cpf[:3]}.{cpf[3:6]}.{cpf[6:9]}-{cpf[9:]}"
