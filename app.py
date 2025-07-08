@@ -235,10 +235,14 @@ if uploaded_file and uploaded_file2:
             tabela_origem = re.findall(r"((?:\|.*\n)+)", st.session_state["texto_transformado"].split('\n\n ------------ \n\n')[1])
             tabela_destino = re.findall(r"((?:\|.*\n)+)", st.session_state["texto_transformado"].split('\n\n ------------ \n\n')[2])
             
+            # st.write(tabela_origem)
 
             df_origem_final = juntar_tabelas_markdown(tabela_origem)
             df_destino_final = juntar_tabelas_markdown(tabela_destino)
             # df_origem_final = pd.concat(dataframes, ignore_index=True)
+
+            # st.write(df_origem_final)
+            # st.write(df_destino_final)
 
             df_origem_destino_final = criar_tabela_origem_destino_preenchida(name_file, banco_comunicante, titular_env, df_origem_final, df_destino_final)
 

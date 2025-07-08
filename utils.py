@@ -578,61 +578,145 @@ def limpar_resultado_final(texto):
     texto = texto.strip()
     return texto
 
-def juntar_tabelas_markdown(tables):
-    dataframes = []
-    for table in tables:
-        lines = [line.strip() for line in table.strip().split("\n") if line.strip()]
+def juntar_tabelas_markdown(markdown_tables):
+    """
+    Processa uma lista de strings, onde cada string é uma tabela em formato Markdown,
+    e as consolida em um único DataFrame do Pandas.
+
+    A função é robusta para tabelas com múltiplas linhas, uma única linha de dados
+    ou mesmo nenhuma linha de dados.
+
+    Args:
+        markdown_tables (list): Uma lista de strings, cada uma contendo uma tabela Markdown.
+
+    Returns:
+        pd.DataFrame: Um DataFrame consolidado com os dados de todas as tabelas válidas.
+                      Retorna um DataFrame vazio se nenhuma tabela válida for encontrada.
+    """
+    lista_dataframes = []
+
+    for tabela in markdown_tables:
+        # 1. Limpeza inicial e separação de linhas, removendo linhas totalmente em branco.
+        linhas = [linha.strip() for linha in tabela.strip().split("\n") if linha.strip()]
         
-        # Remover linhas com apenas hífens
-        lines = [line for line in lines if not re.fullmatch(r"\|?[-| ]+\|?", line)]
+        # 2. Remover a linha separadora (ex: |---|---|, |:--:|--|)
+        # A expressão regular agora é mais flexível para incluir os dois pontos usados em alinhamento.
+        linhas_sem_separador = [
+            linha for linha in linhas 
+            if not re.fullmatch(r"\|?[-| :]+\|?", linha.strip())
+        ]
 
-        if len(lines) >= 2:
-            csv_like = "\n".join(lines)
-            df_origem = pd.read_csv(StringIO(csv_like), sep='|', engine='python')
+        # 3. Validar se temos pelo menos um cabeçalho. Se não, não é uma tabela válida.
+        if len(linhas_sem_separador) < 1:
+            continue
+
+        # 4. O cabeçalho é a primeira linha. As demais são dados.
+        linha_cabecalho = linhas_sem_separador[0]
+        linhas_de_dados = linhas_sem_separador[1:]
+
+        # 5. Processar o cabeçalho para obter os nomes das colunas.
+        #    - .strip('|') remove os pipes das extremidades.
+        #    - .split('|') divide a string nas colunas.
+        #    - A list comprehension limpa os espaços em branco de cada nome de coluna.
+        nomes_colunas = [col.strip() for col in linha_cabecalho.strip('|').split('|')]
+
+        # 6. Processar cada linha de dados.
+        dados_processados = []
+        for linha_dado in linhas_de_dados:
+            # O mesmo processo do cabeçalho é aplicado a cada linha de dados.
+            celulas = [cel.strip() for cel in linha_dado.strip('|').split('|')]
             
-            # Remover colunas com nomes vazios (normalmente primeira e última)
+            # Garantir que a linha de dados tenha o mesmo número de colunas que o cabeçalho
+            # ajuda a evitar erros com linhas mal formatadas.
+            if len(celulas) == len(nomes_colunas):
+                dados_processados.append(celulas)
 
-            df_origem = df_origem.loc[:, df_origem.columns[1:-1]]
-            
-            # Limpar nomes das colunas e valores
-            df_origem.columns = df_origem.columns.str.strip()
-            df_origem = df_origem.applymap(lambda x: x.strip() if isinstance(x, str) else x)
+        # 7. Criar o DataFrame apenas se tivermos um cabeçalho e dados válidos.
+        #    Isso lida corretamente com o caso de tabelas que só têm cabeçalho.
+        if nomes_colunas and dados_processados:
+            df = pd.DataFrame(dados_processados, columns=nomes_colunas)
+            lista_dataframes.append(df)
 
-            # Adicionar novas colunas, adicionar valores padrão, e realizar para as duas tabelas (origem e destino) MELHOR FAZER UMA FUNÇÃO
-            # df_origem.rename(columns={"A": "Valor", "B": "b", "C": "c"})
+    # 8. Concatenar todos os DataFrames resultantes em um só.
+    if not lista_dataframes:
+        return pd.DataFrame() # Retorna um DataFrame vazio se nenhuma tabela foi processada.
 
-            # novas_colunas = [""]
-            
-            dataframes.append(df_origem)
-
-    # Concatenar todas as tabelas
-    df_final = pd.concat(dataframes, ignore_index=True)
+    df_final = pd.concat(lista_dataframes, ignore_index=True)
     return df_final
 
 def criar_tabela_origem_destino_preenchida(comunicacao, banco_comunicante, titular, tabela_origem, tabela_destino):
-    colunas = ['Comunicação', 'Remetente_Nome', 'Remetente_CPF_CNPJ', 'Remetente_Banco', 'Valor', 'Quantidade', 'Destinatário_Nome', 'Destinatário_CPF_CNPJ', 'Destinatário_Banco']
-    tabela_final_origem = pd.DataFrame(columns=colunas)
-    tabela_final_destino = pd.DataFrame(columns=colunas)
-    try:
-        # ORIGEM
-        tabela_final_origem.iloc[:,[1, 2, 3, 4, 5]] = tabela_origem.iloc[:,[2, 3, 4, 0, 1]]
-        tabela_final_origem.iloc[:,0] = comunicacao
-        tabela_final_origem.iloc[:,6] = titular.iloc[2]
-        tabela_final_origem.iloc[:,7] = titular.iloc[1]
-        tabela_final_origem.iloc[:,8] = "{} - {} - {}".format(banco_comunicante, titular.iloc[4], titular.iloc[5])
-    except:
-        print("ERRO ORIGEM")
-    try:
-        # DESTINO
-        tabela_final_destino.iloc[:,[6, 7, 8, 4, 5]] = tabela_destino.iloc[:,[2, 3, 4, 0, 1]]
-        tabela_final_destino.iloc[:,0] = comunicacao
-        tabela_final_destino.iloc[:,1] = titular.iloc[2]
-        tabela_final_destino.iloc[:,2] = titular.iloc[1]
-        tabela_final_destino.iloc[:,3] = "{} - {} - {}".format(banco_comunicante, titular.iloc[4], titular.iloc[5])
-    except:
-        print("ERRO DESTINO")
+    """
+    Estrutura e consolida os dados de transações de origem e destino em um único DataFrame padronizado.
 
-    return pd.concat([tabela_final_origem, tabela_final_destino]).reset_index(drop=True)
+    Args:
+        comunicacao (str): Identificador da comunicação.
+        banco_comunicante (str): Nome do banco que está comunicando a operação.
+        titular (pd.Series): Uma série contendo os dados do titular da conta que fez a comunicação.
+                             Espera-se que contenha informações como CPF/CNPJ, Nome, Agência e Conta.
+        tabela_origem (pd.DataFrame): DataFrame com os dados das transações de origem.
+        tabela_destino (pd.DataFrame): DataFrame com os dados das transações de destino.
+
+    Returns:
+        pd.DataFrame: Um DataFrame consolidado com as colunas padronizadas.
+                      Retorna um DataFrame vazio se as tabelas de entrada estiverem vazias.
+    """
+    # Se ambas as tabelas de entrada estiverem vazias, não há o que fazer.
+    if tabela_origem.empty and tabela_destino.empty:
+        return pd.DataFrame()
+
+    # --- Processamento da Tabela de Origem ---
+    df_origem = pd.DataFrame()
+    if not tabela_origem.empty:
+        # Renomeia as colunas da tabela de origem para nomes temporários e claros
+        # com base na sua lógica original de .iloc.
+        # Ex: coluna 0 era 'Valor', coluna 1 era 'Quantidade', etc.
+        mapeamento_origem = {
+            tabela_origem.columns[0]: 'Valor',
+            tabela_origem.columns[1]: 'Quantidade',
+            tabela_origem.columns[2]: 'Remetente_Nome',
+            tabela_origem.columns[3]: 'Remetente_CPF_CNPJ',
+            tabela_origem.columns[4]: 'Remetente_Banco'
+        }
+        df_origem = tabela_origem.rename(columns=mapeamento_origem).copy()
+
+        # Adiciona as colunas de metadados
+        df_origem['Comunicação'] = comunicacao
+        df_origem['Destinatário_Nome'] = titular.iloc[2]
+        df_origem['Destinatário_CPF_CNPJ'] = titular.iloc[1]
+        df_origem['Destinatário_Banco'] = f"{banco_comunicante} - {titular.iloc[4]} - {titular.iloc[5]}"
+
+    # --- Processamento da Tabela de Destino ---
+    df_destino = pd.DataFrame()
+    if not tabela_destino.empty:
+        # Renomeia as colunas da tabela de destino para nomes claros.
+        mapeamento_destino = {
+            tabela_destino.columns[0]: 'Valor',
+            tabela_destino.columns[1]: 'Quantidade',
+            tabela_destino.columns[2]: 'Destinatário_Nome',
+            tabela_destino.columns[3]: 'Destinatário_CPF_CNPJ',
+            tabela_destino.columns[4]: 'Destinatário_Banco'
+        }
+        df_destino = tabela_destino.rename(columns=mapeamento_destino).copy()
+
+        # Adiciona as colunas de metadados
+        df_destino['Comunicação'] = comunicacao
+        df_destino['Remetente_Nome'] = titular.iloc[2]
+        df_destino['Remetente_CPF_CNPJ'] = titular.iloc[1]
+        df_destino['Remetente_Banco'] = f"{banco_comunicante} - {titular.iloc[4]} - {titular.iloc[5]}"
+
+    # --- Consolidação Final ---
+    df_final = pd.concat([df_origem, df_destino], ignore_index=True)
+
+    # Define a ordem final e garante que todas as colunas existam, preenchendo com NaN se necessário.
+    colunas_finais = [
+        'Comunicação', 'Remetente_Nome', 'Remetente_CPF_CNPJ', 'Remetente_Banco',
+        'Valor', 'Quantidade', 'Destinatário_Nome', 'Destinatário_CPF_CNPJ', 'Destinatário_Banco'
+    ]
+    
+    # Reindexar garante a ordem correta e a presença de todas as colunas
+    df_final = df_final.reindex(columns=colunas_finais)
+
+    return df_final
 
 
 def clean_number(cnpj_cpf: str) -> str:
