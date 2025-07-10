@@ -255,7 +255,7 @@ if uploaded_file and uploaded_file2:
             st.write(df_origem_destino_final)
             st.download_button(
             "💾 Baixar tabela como CSV",
-            df_origem_destino_final.to_csv(index=False),
+            df_origem_destino_final.to_csv(index=False, sep=';'),
             file_name="{}_origem_destino.csv".format(name_file),
             key="download_origem_destino")
 
@@ -295,7 +295,7 @@ if uploaded_file and uploaded_file2:
             st.write(df_limpo_tratado)
             st.download_button(
             "💾 Baixar tabela como CSV",
-            df_limpo_tratado.to_csv(index=False),
+            df_limpo_tratado.to_csv(index=False, sep=';'),
             file_name="origem_destino_tratado.csv",
             key="download_origem_destino_tabela_unica")
 
