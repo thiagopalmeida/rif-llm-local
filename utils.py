@@ -12,6 +12,9 @@ import difflib
 from typing import List, Optional
 import numpy as np
 from rapidfuzz import process, fuzz
+import streamlit as st
+from typing import List, Any
+import chardet
 
 
 
@@ -794,42 +797,80 @@ def best_match(input_dirty: str, valid_list: List[str], similarity_threshold: fl
 
 #     return df
 
-def juntar_csvs(arquivos_csv):
+def juntar_csvs(arquivos_csv: List[Any]) -> pd.DataFrame:
     """
-    Recebe uma lista de objetos UploadedFile do Streamlit e os concatena em um único DataFrame.
+    Recebe uma lista de arquivos CSV do Streamlit, detecta o separador (',' ou ';')
+    e a codificação de cada um, e os concatena em um único DataFrame.
     """
-    # Passamos cada objeto 'file' diretamente para o pd.read_csv
-    dfs = [pd.read_csv(file) for file in arquivos_csv]
-    return pd.concat(dfs, ignore_index=True)
+    lista_de_dfs = []
+    for file in arquivos_csv:
+        # Lê os bytes do arquivo para detectar a codificação
+        file.seek(0)
+        raw_data = file.read()
+        file.seek(0)
+        
+        # Tenta detectar a codificação, com um fallback para 'latin-1'
+        try:
+            encoding_detectado = chardet.detect(raw_data)['encoding'] or 'latin-1'
+        except:
+            encoding_detectado = 'latin-1'
+
+        try:
+            # Tenta ler com ponto e vígula, que é comum no Brasil
+            df = pd.read_csv(file, sep=';', encoding=encoding_detectado)
+            # Se a leitura com ';' resultar em apenas uma coluna, provavelmente está errado
+            if df.shape[1] <= 1:
+                raise ValueError("Separador incorreto, tentando com vírgula.")
+            lista_de_dfs.append(df)
+        except (ValueError, pd.errors.ParserError):
+            try:
+                file.seek(0)
+                # Se a tentativa com ';' falhar, tenta com vírgula
+                df = pd.read_csv(file, sep=',', encoding=encoding_detectado)
+                lista_de_dfs.append(df)
+            except Exception as e:
+                st.error(f"Não foi possível ler o arquivo {file.name}. Verifique o formato. Erro: {e}")
+                # Pula o arquivo com erro em vez de quebrar a aplicação
+                continue
+    
+    if not lista_de_dfs:
+        return pd.DataFrame() # Retorna um DataFrame vazio se nenhum arquivo puder ser lido
+
+    return pd.concat(lista_de_dfs, ignore_index=True)
 
 def limpar_valor(valor):
-    if not isinstance(valor, str):
-        valor = str(valor)
-    
-    # Remove 'R$', 'R', espaços e outros símbolos não numéricos comuns
-    valor = re.sub(r'[^\d,.-]', '', valor)
-    
-    # Se há vírgula e ponto, decidir quem é milhar e quem é decimal
-    if ',' in valor and '.' in valor:
-        if valor.find(',') < valor.find('.'):
-            # Ex: 1,352,805.0 (vírgula = milhar, ponto = decimal)
-            valor = valor.replace(',', '')
-        else:
-            # Ex: 437.839,00 (ponto = milhar, vírgula = decimal)
-            valor = valor.replace('.', '').replace(',', '.')
-    elif ',' in valor:
-        # Assume que vírgula é separador decimal (estilo brasileiro)
-        valor = valor.replace(',', '.')
-    else:
-        # Só ponto ou nenhum: assume ponto como decimal
+    if pd.isnull(valor):
         pass
-    if valor == "":
-        valor = np.nan
+    else:
+    
+        if not isinstance(valor, str):
+            valor = str(valor)
+        
+        # Remove 'R$', 'R', espaços e outros símbolos não numéricos comuns
+        valor = re.sub(r'[^\d,.]', '', valor)
+        
+        # Se há vírgula e ponto, decidir quem é milhar e quem é decimal
+        if ',' in valor and '.' in valor:
+            if valor.find(',') < valor.find('.'):
+                # Ex: 1,352,805.0 (vírgula = milhar, ponto = decimal)
+                valor = valor.replace(',', '')
+            else:
+                # Ex: 437.839,00 (ponto = milhar, vírgula = decimal)
+                valor = valor.replace('.', '').replace(',', '.')
+        elif ',' in valor:
+            # Assume que vírgula é separador decimal (estilo brasileiro)
+            valor = valor.replace(',', '.')
+        else:
+            # Só ponto ou nenhum: assume ponto como decimal
+            pass
+        if valor == "":
+            valor = np.nan
     
     try:
         return float(valor)
     except ValueError:
         raise ValueError(f"Valor inválido para conversão: {valor}")
+        
         
 
 def limpar_dataframe_ori_dest(df):
@@ -847,18 +888,8 @@ def limpar_dataframe_ori_dest(df):
     df = df.dropna(subset=["Remetente_CPF_CNPJ", "Destinatário_CPF_CNPJ"])
 
     # Converte coluna "Valor" para número
-    df["valor"] = df["Valor"].apply(limpar_valor)
-    # df["Valor"] = (
-    #     df["Valor"]
-    #     .astype(str)
-    #     .str.replace(".", "", regex=False)
-    #     .str.replace(",", ".", regex=False)
-    #     .str.replace("R", "", regex=False)
-    #     .str.strip()
-    #     .replace("[^\.\d]*", "", regex=True)
-    #     .replace("", np.nan)
-    #     .astype(float)
-    # )
+   
+    df["Valor"] = df["Valor"].apply(limpar_valor)
 
     # Substitui valores NaN em colunas textuais por "Desconhecido"
     for col in ["Remetente_Nome", "Remetente_Banco", "Destinatário_Nome", "Destinatário_Banco", "Comunicação"]:
@@ -892,7 +923,9 @@ def corrigir_doc(doc_sujo, referencia):
     return correspondencia[0] if correspondencia else None
 
 def aplicar_mascara(ni):
-    if len(ni) == 14:
+    if not ni:
+        return ni
+    elif len(ni) == 14:
         cnpj = ni 
         return f"{cnpj[:2]}.{cnpj[2:5]}.{cnpj[5:8]}/{cnpj[8:12]}-{cnpj[12:]}"
         

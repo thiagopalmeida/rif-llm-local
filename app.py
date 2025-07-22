@@ -23,57 +23,81 @@ colunas_esperadas_comunic = ['Indexador', 'idComunicacao', 'NumeroOcorrenciaBC',
 colunas_esperadas_entidades = ['Indexador', 'cpfCnpjEnvolvido', 'nomeEnvolvido', 'tipoEnvolvido', 'agenciaEnvolvido', 'contaEnvolvido', 'DataAberturaConta', 'DataAtualizacaoConta', 'bitPepCitado', 'bitPessoaObrigadaCitado', 'intServidorCitado']
 
 # Upload do CSV
-uploaded_file = st.file_uploader("📄 Faça upload de um arquivo CSV COMUNICAÇÃO", type="csv")
-uploaded_file2 = st.file_uploader("📄 Faça upload de um arquivo CSV ENTIDADES", type="csv")
+uploaded_files = st.file_uploader("📄 Faça upload de um arquivo CSV COMUNICAÇÃO", type="csv", accept_multiple_files=True)
+uploaded_files2 = st.file_uploader("📄 Faça upload de um arquivo CSV ENTIDADES", type="csv", accept_multiple_files=True)
 
 df = None
 df_env = None
 
-if uploaded_file:
-    try:
-        df = pd.read_csv(uploaded_file, encoding="iso-8859-1", delimiter=";", dtype={'Indexador': str, 'cpfCnpjComunicante': str, 'CodigoSegmento': str})
-        
-        # Validação das colunas do arquivo COMUNICAÇÃO
-        colunas_faltando_comunicacao = [col for col in colunas_esperadas_comunic if col not in df.columns]
-        
-        if colunas_faltando_comunicacao:
-            st.error(
-                f"🚨 **Erro no arquivo COMUNICAÇÃO!** As seguintes colunas estão faltando: "
-                f"{', '.join(colunas_faltando_comunicacao)}. "
-                "Por favor, verifique se o arquivo está no formato correto e tente novamente."
-            )
-            df = None # Define como None para evitar processamento com dados incompletos
-        else:
-            st.success("✅ Arquivo COMUNICAÇÃO carregado e validado com sucesso!")
+lista_de_dfs = []
+for uploaded_file in uploaded_files:
+    if uploaded_file:
+        try:
+            df = pd.read_csv(uploaded_file, encoding="iso-8859-1", delimiter=";", dtype={'Indexador': str, 'cpfCnpjComunicante': str, 'CodigoSegmento': str})
+            
+            # Validação das colunas do arquivo COMUNICAÇÃO
+            colunas_faltando_comunicacao = [col for col in colunas_esperadas_comunic if col not in df.columns]
+            
+            if colunas_faltando_comunicacao:
+                st.error(
+                    f"🚨 **Erro no arquivo COMUNICAÇÃO!** As seguintes colunas estão faltando: "
+                    f"{', '.join(colunas_faltando_comunicacao)}. "
+                    "Por favor, verifique se o arquivo está no formato correto e tente novamente."
+                )
+                df = None # Define como None para evitar processamento com dados incompletos
+            else:
+                st.success("✅ Arquivo COMUNICAÇÃO carregado e validado com sucesso!")
+            match = re.search(r'(\d+)', uploaded_file.name)
+            if match:
+                rif_num = match.group(1)
+                df['rif_num'] = rif_num
+            else:
+                # Se não encontrar número, usa o nome do arquivo como fallback
+                df['rif_num'] = uploaded_file.name
 
-    except Exception as e:
-        st.error(f"Ocorreu um erro ao carregar o arquivo COMUNICAÇÃO: {e}")
+        except Exception as e:
+            st.error(f"Ocorreu um erro ao carregar o arquivo COMUNICAÇÃO: {e}")
 
-if uploaded_file2:
-    try:
-        df_env = pd.read_csv(uploaded_file2, encoding="iso-8859-1", delimiter=";", dtype={'Indexador': str})
-        
-        # Validação das colunas do arquivo ENTIDADES
-        colunas_faltando_entidades = [col for col in colunas_esperadas_entidades if col not in df_env.columns]
-        
-        if colunas_faltando_entidades:
-            st.error(
-                f"🚨 **Erro no arquivo ENTIDADES!** As seguintes colunas estão faltando: "
-                f"{', '.join(colunas_faltando_entidades)}. "
-                "Por favor, verifique se o arquivo está no formato correto e tente novamente."
-            )
-            df_env = None # Define como None para evitar processamento com dados incompletos
-        else:
-            st.success("✅ Arquivo ENTIDADES carregado e validado com sucesso!")
+    lista_de_dfs.append(df)
+    df = pd.concat(lista_de_dfs, ignore_index=True)
 
-    except Exception as e:
-        st.error(f"Ocorreu um erro ao carregar o arquivo ENTIDADES: {e}")
+lista_de_dfs_env = []
+for uploaded_file2 in uploaded_files2:
+    if uploaded_file2:
+        try:
+            df_env = pd.read_csv(uploaded_file2, encoding="iso-8859-1", delimiter=";", dtype={'Indexador': str})
+            
+            # Validação das colunas do arquivo ENTIDADES
+            colunas_faltando_entidades = [col for col in colunas_esperadas_entidades if col not in df_env.columns]
+            
+            if colunas_faltando_entidades:
+                st.error(
+                    f"🚨 **Erro no arquivo ENTIDADES!** As seguintes colunas estão faltando: "
+                    f"{', '.join(colunas_faltando_entidades)}. "
+                    "Por favor, verifique se o arquivo está no formato correto e tente novamente."
+                )
+                df_env = None # Define como None para evitar processamento com dados incompletos
+            else:
+                st.success("✅ Arquivo ENTIDADES carregado e validado com sucesso!")
+            match = re.search(r'(\d+)', uploaded_file2.name)
+            if match:
+                rif_num = match.group(1)
+                df_env['rif_num'] = rif_num
+            else:
+                # Se não encontrar número, usa o nome do arquivo como fallback
+                df_env['rif_num'] = uploaded_file.name
+
+        except Exception as e:
+            st.error(f"Ocorreu um erro ao carregar o arquivo ENTIDADES: {e}")
+
+    lista_de_dfs_env.append(df_env)
+    df_env = pd.concat(lista_de_dfs_env, ignore_index=True)
 
 # Somente prossiga se ambos os DataFrames foram carregados e validados com sucesso
 if df is not None and df_env is not None:
     st.write("---")
 
-if uploaded_file and uploaded_file2:
+if uploaded_files and uploaded_files2:
     df = df[df.CodigoSegmento == "41"].reset_index(drop=True)
     coluna_escolhida = 'informacoesAdicionais'
     
@@ -81,6 +105,7 @@ if uploaded_file and uploaded_file2:
         lista_comunicacoes = df.idComunicacao.values.tolist()
         
         indexador = df.Indexador.values.tolist()
+        rif_num = df.rif_num.values.tolist()
         # para criar lista envolvidos CPF/CNPJ e NOMES
         todos_envolvidos_cpf_cnpj = df_env.cpfCnpjEnvolvido.dropna().astype(str).tolist()
         todos_envolvidos_nomes = df_env.nomeEnvolvido.dropna().tolist()
