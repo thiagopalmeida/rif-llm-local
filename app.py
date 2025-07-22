@@ -201,22 +201,25 @@ if uploaded_file and uploaded_file2:
                     st.download_button("💾 Baixar como .md", st.session_state["texto_transformado"], file_name="{}_transformado.md".format(name_file), help="Baixa apenas o texto em Markdown", key="download_md")
             with col2_button_download:
                 if novo_texto:
-                    # FALTA IMPLEMENTAR                    
-                    json_para_baixar = {"comunicacao": "{}".format(name_file),
-                                        "texto_bruto_total": "{}".format(texto_original),
-                                        "texto_bruto_geral": "{}".format(geral),
-                                        "texto_bruto_origem": "{}".format(selecao_origem),
-                                        "texto_bruto_destino": "{}".format(selecao_destino),
-                                        "texto_transformado_total": "{}".format(novo_texto),
-                                        "texto_transformado_geral": "{}".format(str(st.session_state["texto_transformado"]).split('\n\n ------------ \n\n')[0]),
-                                        "texto_transformado_origem": "{}".format(str(st.session_state["texto_transformado"]).split('\n\n ------------ \n\n')[1]),
-                                        "texto_transformado_destino": "{}".format(str(st.session_state["texto_transformado"]).split('\n\n ------------ \n\n')[2])
-                    }
-                    json_string = json.dumps(json_para_baixar, ensure_ascii=False, indent=4)
+                    # FALTA IMPLEMENTAR
+                    try:                   
+                        json_para_baixar = {"comunicacao": "{}".format(name_file),
+                                            "texto_bruto_total": "{}".format(texto_original),
+                                            "texto_bruto_geral": "{}".format(geral),
+                                            "texto_bruto_origem": "{}".format(selecao_origem),
+                                            "texto_bruto_destino": "{}".format(selecao_destino),
+                                            "texto_transformado_total": "{}".format(novo_texto),
+                                            "texto_transformado_geral": "{}".format(str(st.session_state["texto_transformado"]).split('\n\n ------------ \n\n')[0]),
+                                            "texto_transformado_origem": "{}".format(str(st.session_state["texto_transformado"]).split('\n\n ------------ \n\n')[1]),
+                                            "texto_transformado_destino": "{}".format(str(st.session_state["texto_transformado"]).split('\n\n ------------ \n\n')[2])
+                        }
+                        json_string = json.dumps(json_para_baixar, ensure_ascii=False, indent=4)
 
-                    # st.json(json_string, expanded=True)
-                    
-                    st.download_button("💾 Baixar como .json", json_string.encode('utf-8'), file_name="{}_tudo.json".format(name_file), help="Baixa todos os textos brutos e transformados (8 no total)", key="download_json")
+                        # st.json(json_string, expanded=True)
+                        
+                        st.download_button("💾 Baixar como .json", json_string.encode('utf-8'), file_name="{}_tudo.json".format(name_file), help="Baixa todos os textos brutos e transformados (8 no total)", key="download_json")
+                    except Exception as e:
+                        st.error(f"Ocorreu um erro ao tentar baixar o json: {e}")
 
         # Se ativado, exibe o expander com markdown renderizado
         if st.session_state["mostrar_dialog"]:
@@ -232,13 +235,20 @@ if uploaded_file and uploaded_file2:
             # TESTE TABELA ------------------
 
             # Encontrar todos os blocos de tabela markdown
-            tabela_origem = re.findall(r"((?:\|.*\n)+)", st.session_state["texto_transformado"].split('\n\n ------------ \n\n')[1])
-            tabela_destino = re.findall(r"((?:\|.*\n)+)", st.session_state["texto_transformado"].split('\n\n ------------ \n\n')[2])
-            
+            try:
+                tabela_origem = re.findall(r"((?:\|.*\n)+)", st.session_state["texto_transformado"].split('\n\n ------------ \n\n')[1])
+                df_origem_final = juntar_tabelas_markdown(tabela_origem)
+            except IndexError:
+                df_origem_final = pd.DataFrame()
+            try:
+                tabela_destino = re.findall(r"((?:\|.*\n)+)", st.session_state["texto_transformado"].split('\n\n ------------ \n\n')[2])
+                df_destino_final = juntar_tabelas_markdown(tabela_destino)
+            except IndexError:
+                df_destino_final = pd.DataFrame()
             # st.write(tabela_origem)
 
-            df_origem_final = juntar_tabelas_markdown(tabela_origem)
-            df_destino_final = juntar_tabelas_markdown(tabela_destino)
+            
+            
             # df_origem_final = pd.concat(dataframes, ignore_index=True)
 
             # st.write(df_origem_final)
