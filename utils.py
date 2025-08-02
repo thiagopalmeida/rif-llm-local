@@ -483,76 +483,75 @@ def juntar_textos(geral, selecao1, selecao2):
     textos_lista.append({"destino": selecao2})
     return textos_lista
 
-# Função para aplicar modelo LLM por seção com prompt especializado
 def aplicar_llm_por_secao(textos_lista):
-    resultado_final = []
+    """
+    Aplica um modelo LLM a seções de texto, dividindo o texto apenas quando necessário
+    e usando prompts especializados por tipo de seção.
+    """
+    
+    # Cria o objeto LLM e o splitter uma única vez para reutilização.
+    llm = ChatOllama(model="phi4:latest", temperature=0)
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=12000, 
+        chunk_overlap=300, 
+        separators=["[NOME", "[CPF", "[CNPJ"]
+    )
+    
+    # Lista para guardar os resultados finais de cada item da lista de entrada
+    resultados_finais_completos = []
+
     for texto_key_value in textos_lista:
-        for key, value in texto_key_value.items():
-            tipo_secao = key
-            texto_secao = value
+        # Lista para guardar os resultados dos trechos de um único item
+        resultados_do_item_atual = []
+        for tipo_secao, texto_secao in texto_key_value.items():
+            
+            # Verifica o tamanho do texto ANTES de decidir se vai dividir.
+            if len(texto_secao) > splitter._chunk_size:
+                trechos = splitter.split_text(texto_secao)
+            else:
+                # Se o texto for pequeno, o "trecho" é o próprio texto inteiro.
+                # Lista para manter a estrutura do loop.
+                trechos = [texto_secao]
 
-            # Dividir se for muito longo
-            splitter = RecursiveCharacterTextSplitter(chunk_size=4000, chunk_overlap=200, separators=["[NOME", "[CPF", "[CNPJ"])
-            trechos = splitter.split_text(texto_secao)
-            resultados = []
-            if tipo_secao == "geral":
-                    prompt = montar_prompt(texto_secao)
+            # Processa cada trecho (seja um pedaço de um texto longo ou o texto curto inteiro)
             for trecho in trechos:
-                # if tipo_secao == "geral":
-                #     prompt = montar_prompt(trecho)
-            
-                if tipo_secao == "origem":
-                    prompt = """
-            
-                    Extraia os seguintes dados de cada entidade presente no texto abaixo:
-            
-                    - Valor total movimentado
-                    - Quantidade de lançamentos
-                    - Nome
-                    - CPF ou CNPJ
-                    - Banco (quando houver)
-                    
-                    O texto está anotado com marcadores para facilitar a identificação, como [VALOR:**...**], [NOME_RELEVANTE:**...**], [CPF:**...**], [CNPJ:**...**]. Quando o nome não estiver marcado como NOME_RELEVANTE, use o nome mais próximo do CPF ou CNPJ. Ignore duplicações.
-                    
-                    A saída só deve constar a tabela gerada no formato solicitado e nada mais.
-                    
-                    A saída deve estar em formato markdown de tabela com as colunas:
-                    
-                    | Valor | Qtd. Lançamentos | Nome | CPF/CNPJ | Banco |
-                    """
-                    
-                    prompt += f"Texto original:\n{trecho}"
-            
-                elif tipo_secao == "destino":
-                    prompt = """
-            
-                    Extraia os seguintes dados de cada entidade presente no texto abaixo:
-            
-                    - Valor total movimentado
-                    - Quantidade de lançamentos
-                    - Nome
-                    - CPF ou CNPJ
-                    - Banco (quando houver)
-                    
-                    O texto está anotado com marcadores para facilitar a identificação, como [VALOR:**...**], [NOME_RELEVANTE:**...**], [CPF:**...**], [CNPJ:**...**]. Quando o nome não estiver marcado como NOME_RELEVANTE, use o nome mais próximo do CPF ou CNPJ. Ignore duplicações.
-                    
-                    A saída só deve constar a tabela gerada no formato solicitado e nada mais.
-                    
-                    A saída deve estar em formato markdown de tabela com as colunas:
-                    
-                    | Valor | Qtd. Lançamentos | Nome | CPF/CNPJ | Banco |
-                    """
-                    
-                    prompt += f"Texto original:\n{trecho}"
+                prompt = ""
 
-                llm = ChatOllama(model="phi4:latest", temperature=0)
-                # llm = ChatOllama(model="qwen3:4b", temperature=0)
-                resultado = llm.invoke(prompt)
-                resultado = resultado.content.replace("```markdown",'').replace("Aqui está o texto formatado em Markdown:", "").replace("```", "").replace("Este formato em Markdown organiza o texto de forma clara e estruturada, facilitando a leitura e compreensão das informações financeiras apresentadas.", "")
-                resultados.append(resultado.strip())
-        resultado_final.append('\n'.join(resultados))
+                if tipo_secao == "geral":
+                    prompt = montar_prompt(trecho)
 
-    return '\n\n ------------ \n\n'.join(resultado_final)
+                elif tipo_secao in ["origem", "destino"]:
+                    prompt = f"""
+                    Sua tarefa é extrair dados de entidades de um texto financeiro.
+                    
+                    Instruções:
+                    1. Extraia: Valor total, quantidade de lançamentos, nome, CPF/CNPJ e banco (se houver).
+                    2. O texto usa marcadores como [VALOR:**...**] e [NOME_RELEVANTE:**...**] para ajudar.
+                    3. Ignore qualquer entidade duplicada.
+                    4. Sua resposta deve conter APENAS a tabela em formato Markdown. Não inclua introduções, explicações ou texto adicional.
+                    
+                    A tabela deve ter as seguintes colunas:
+                    | Valor | Qtd. Lançamentos | Nome | CPF/CNPJ | Banco |
+                    
+                    Texto para análise:
+                    {trecho}
+                    """
+                
+                # Se um prompt foi gerado, execute o LLM
+                if prompt:
+                    resultado_bruto = llm.invoke(prompt)
+                    
+                    # Limpeza mínima
+                    resultado_limpo = resultado_bruto.content.replace("```markdown", "").replace("```", "").strip()
+                    
+                    resultados_do_item_atual.append(resultado_limpo)
+
+        # Junta os resultados de todos os trechos e seções de um item da lista original
+        resultados_finais_completos.append('\n'.join(resultados_do_item_atual))
+
+    # Junta os resultados de todos os itens da lista de entrada com um separador claro
+    return '\n\n ------------ \n\n'.join(resultados_finais_completos)
+
 
 def limpar_resultado_final(texto):
     """

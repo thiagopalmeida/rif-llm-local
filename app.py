@@ -24,7 +24,7 @@ colunas_esperadas_entidades = ['Indexador', 'cpfCnpjEnvolvido', 'nomeEnvolvido',
 
 # Upload do CSV
 uploaded_files = st.file_uploader("📄 Faça upload de um arquivo CSV COMUNICAÇÃO", type="csv", accept_multiple_files=True)
-uploaded_files2 = st.file_uploader("📄 Faça upload de um arquivo CSV ENTIDADES", type="csv", accept_multiple_files=True)
+uploaded_files2 = st.file_uploader("📄 Faça upload de um arquivo CSV ENVOLVIDOS", type="csv", accept_multiple_files=True)
 
 df = None
 df_env = None
