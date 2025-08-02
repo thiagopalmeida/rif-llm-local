@@ -125,6 +125,7 @@ if uploaded_files and uploaded_files2:
         comunic_numero = st.select_slider("Escolha a comunicação", options=lista_comunicacoes_editada)
         idx = df.loc[df['idComunicacao'] == float(comunic_numero)].index[0]
         ind = df.at[idx, "Indexador"]
+        n_rif = df.at[idx, "rif_num"]
         texto_original = df.at[idx, coluna_escolhida]
         banco_comunicante = df.at[idx, "nomeComunicante"]
 
@@ -133,7 +134,7 @@ if uploaded_files and uploaded_files2:
 
         # st.dataframe(df_env) BRONCA AQUI (LEMBRAR DE ESPECIFICAR OS FORMATOS DAS COLUNAS NA IMPORTAÇÃO PARA EVITAR ERROS)
 
-        st.dataframe(df_env[df_env.Indexador == ind])
+        st.dataframe(df_env[(df_env.Indexador == ind) & (df_env.rif_num == n_rif)])
 
         indexador_env = df.at[idx, "Indexador"]
         df_env_selecionados = df_env[df_env['Indexador'] == indexador_env]
