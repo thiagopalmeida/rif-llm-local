@@ -859,6 +859,9 @@ def limpar_valor(valor):
         elif ',' in valor:
             # Assume que vírgula é separador decimal (estilo brasileiro)
             valor = valor.replace(',', '.')
+        elif '.' in valor:
+            # Assume que só tem o ponto sem a vírgula 9.990.000
+            valor = valor.replace('.', '')
         else:
             # Só ponto ou nenhum: assume ponto como decimal
             pass
