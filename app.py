@@ -101,9 +101,9 @@ if uploaded_files and uploaded_files2:
     df = df[df.CodigoSegmento == "41"].reset_index(drop=True)
     coluna_escolhida = 'informacoesAdicionais'
 
-    st.markdown("#### Seleção de comunicações")
+    st.markdown("#### Seleção das comunicações")
     sel_comunicacoes = st.radio(
-    "Verificar todas as comunicações ou apenas as selecionadas?",
+    "Verifica todas as comunicações ou apenas as selecionadas",
     ["Todas", "Seleção (Manual)", "Seleção (Automática)"],
     index=None, help="A seleção automática utiliza as comunicações que os investigados figuram como titular", horizontal=True)
     
@@ -364,10 +364,11 @@ if uploaded_files and uploaded_files2:
             df_limpo_tratado = df_limpo.drop(['len_Remetente_CPF_CNPJ', 'len_Destinatário_CPF_CNPJ', 'Remetente_CPF_CNPJ_sem_mascara', 'Remetente_CPF_CNPJ_sem_mascara_corrigido', 'Destinatario_CPF_CNPJ_sem_mascara', 'Destinatario_CPF_CNPJ_sem_mascara_corrigido'], axis=1)
             
             st.write(df_limpo_tratado)
+            numeracao_rif_str = "_".join("{}".format(r_number) for r_number in list(set(rif_num)))
             st.download_button(
             "💾 Baixar tabela como CSV",
             df_limpo_tratado.to_csv(index=False, sep=';'),
-            file_name="origem_destino_tratado.csv",
+            file_name="origem_destino_tratado_rif_{}.csv".format(numeracao_rif_str),
             key="download_origem_destino_tabela_unica")
 
         else:
