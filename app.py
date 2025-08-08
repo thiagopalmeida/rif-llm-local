@@ -100,6 +100,12 @@ if df is not None and df_env is not None:
 if uploaded_files and uploaded_files2:
     df = df[df.CodigoSegmento == "41"].reset_index(drop=True)
     coluna_escolhida = 'informacoesAdicionais'
+
+    st.markdown("#### Seleção de comunicações")
+    sel_comunicacoes = st.radio(
+    "Verificar todas as comunicações ou apenas as selecionadas?",
+    ["Todas", "Seleção (Manual)", "Seleção (Automática)"],
+    index=None, help="A seleção automática utiliza as comunicações que os investigados figuram como titular", horizontal=True)
     
     if coluna_escolhida in df.columns:
         lista_comunicacoes = df.idComunicacao.values.tolist()
@@ -122,6 +128,35 @@ if uploaded_files and uploaded_files2:
         for comunica in lista_comunicacoes:
             lista_comunicacoes_editada.append(str(comunica)[:-2])
 
+        if sel_comunicacoes == "Todas":
+            pass
+        elif sel_comunicacoes == "Seleção (Manual)":
+            options_comunic = st.multiselect(
+            "Selecione todas as comunicações que deseja trabalhar (pelo menos duas)",
+            lista_comunicacoes_editada)
+            if options_comunic and len(options_comunic) > 1:
+                lista_comunicacoes_editada = options_comunic
+            else:
+                st.error("Selecione mais de uma comunicação.")
+
+        elif sel_comunicacoes == "Seleção (Automática)":
+            options_alvos = st.multiselect(
+            "Selecione todos os alvos da investigação",
+            todos_envolvidos_cpf_cnpj)
+            if options_alvos:
+                df_env_sel_aut = df_env[df_env.cpfCnpjEnvolvido.isin(options_alvos)]
+                df_env_sel_aut = df_env_sel_aut[df_env_sel_aut.tipoEnvolvido.str.strip().str.lower() == "titular"]
+                df_env_sel_aut = df_env_sel_aut[["Indexador", "rif_num"]].drop_duplicates().reset_index(drop=True)
+                if not df_env_sel_aut.empty:
+                    merged_df_aut = pd.merge(df_env_sel_aut, df, on=['Indexador', 'rif_num'], how='inner')
+                    lista_comunicacoes = merged_df_aut.idComunicacao.values.tolist()
+                    lista_comunicacoes_editada = []
+                    for comunica in lista_comunicacoes:
+                        lista_comunicacoes_editada.append(str(comunica)[:-2])
+                else:
+                    st.error("Não há comunicações que atendem o critério. Mostrando todas.")
+
+        st.markdown("##### Quantidade de comunicações na seleção: {}".format(len(lista_comunicacoes_editada)))
         comunic_numero = st.select_slider("Escolha a comunicação", options=lista_comunicacoes_editada)
         idx = df.loc[df['idComunicacao'] == float(comunic_numero)].index[0]
         ind = df.at[idx, "Indexador"]
