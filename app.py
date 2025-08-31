@@ -157,12 +157,23 @@ if uploaded_files and uploaded_files2:
                     st.error("Não há comunicações que atendem o critério. Mostrando todas.")
 
         st.markdown("##### Quantidade de comunicações na seleção: {}".format(len(lista_comunicacoes_editada)))
-        comunic_numero = st.select_slider("Escolha a comunicação", options=lista_comunicacoes_editada)
-        idx = df.loc[df['idComunicacao'] == float(comunic_numero)].index[0]
-        ind = df.at[idx, "Indexador"]
-        n_rif = df.at[idx, "rif_num"]
-        texto_original = df.at[idx, coluna_escolhida]
-        banco_comunicante = df.at[idx, "nomeComunicante"]
+        if len(lista_comunicacoes_editada) > 1:
+            comunic_numero = st.select_slider("Escolha a comunicação", options=lista_comunicacoes_editada)
+            idx = df.loc[df['idComunicacao'] == float(comunic_numero)].index[0]
+            ind = df.at[idx, "Indexador"]
+            n_rif = df.at[idx, "rif_num"]
+            texto_original = df.at[idx, coluna_escolhida]
+            banco_comunicante = df.at[idx, "nomeComunicante"]
+        elif len(lista_comunicacoes_editada) == 1:
+            # CASO 2: Apenas uma comunicação. Não precisamos de slider.
+            comunic_numero = lista_comunicacoes_editada[0] # Pega o único elemento
+            st.info(f"Apenas uma comunicação encontrada: **{comunic_numero}**")
+            
+            idx = df.loc[df['idComunicacao'] == float(comunic_numero)].index[0]
+            ind = df.at[idx, "Indexador"]
+            n_rif = df.at[idx, "rif_num"]
+            texto_original = df.at[idx, coluna_escolhida]
+            banco_comunicante = df.at[idx, "nomeComunicante"]
 
         # para selecionar apenas os indexes da comunicação
         df_env = df_env[df_env['Indexador'].isin(indexador)]
