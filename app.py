@@ -155,7 +155,7 @@ if uploaded_files and uploaded_files2:
                         lista_comunicacoes_editada.append(str(comunica)[:-2])
                 else:
                     st.error("Não há comunicações que atendem o critério. Mostrando todas.")
-
+        lista_comunicacoes_editada = sorted(list(set(lista_comunicacoes_editada)))
         st.markdown("##### Quantidade de comunicações na seleção: {}".format(len(lista_comunicacoes_editada)))
         if len(lista_comunicacoes_editada) > 1:
             comunic_numero = st.select_slider("Escolha a comunicação", options=lista_comunicacoes_editada)
