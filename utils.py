@@ -304,7 +304,7 @@ def transformar_texto_com_llm(texto_usuario: str) -> str:
     em um texto estruturado em Markdown.
     """
 
-    llm = ChatOllama(model="phi4:latest", temperature=0)
+    llm = ChatOllama(model="phi4:latest", temperature=0, num_ctx=12000, top_k=10, top_p=0.2)
     # llm = ChatOllama(model="qwen3:4b", temperature=0)
 
     prompt = montar_prompt(texto_usuario)
@@ -490,7 +490,7 @@ def aplicar_llm_por_secao(textos_lista):
     """
     
     # Cria o objeto LLM e o splitter uma única vez para reutilização.
-    llm = ChatOllama(model="phi4:latest", temperature=0)
+    llm = ChatOllama(model="phi4:latest", temperature=0, num_ctx=12000, top_k=10, top_p=0.2)
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=12000, 
         chunk_overlap=300, 
